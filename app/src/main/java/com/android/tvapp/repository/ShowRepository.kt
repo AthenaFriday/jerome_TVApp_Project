@@ -4,29 +4,39 @@ import android.util.Log
 import com.android.tvapp.data.Show
 import com.android.tvapp.ui.TvMazeApi
 
-class   ShowRepository(private val api: TvMazeApi) {
+class ShowRepository(private val api: TvMazeApi) {
 
-    // In-memory cache for quick access to previously fetched shows
-    private val cache = mutableMapOf<String, Show>()
+    // Cache the list of shows per query
+    private val cache = mutableMapOf<String, List<Show>>()
 
-    fun getCachedShow(query: String): Show? {
+    // Retrieve cached shows if available
+    fun getCachedShows(query: String): List<Show>? {
         val key = query.lowercase()
         val cached = cache[key]
         if (cached != null) {
-            Log.d("ShowRepository", "Using cached version for \"$query\"")
+            Log.d("ShowRepository", "Using cached results for \"$query\"")
         }
         return cached
     }
 
-    suspend fun searchShow(query: String): Result<Show> {
+    // Perform network search and cache results
+    suspend fun searchShows(query: String): Result<List<Show>> {
         return try {
-            val show = api.searchShow(query)
-            cache[query.lowercase()] = show // Cache the result
-            Log.d("ShowRepository", "Fetched and cached \"$query\" from API")
-            Result.success(show)
+            // Fetch the list of search results from the API
+            val results = api.searchShows(query)
+
+            // Extract the actual Show data from the ShowSearchResult
+            val shows = results.map { it.show }
+
+            // Cache the results for the query
+            cache[query.lowercase()] = shows
+
+            Log.d("ShowRepository", "Fetched and cached results for \"$query\"")
+            Result.success(shows) // Return the list of shows
         } catch (e: Exception) {
-            Log.e("ShowRepository", "Failed to fetch \"$query\": ${e.message}")
-            Result.failure(e)
+            // Handle any errors during the network request
+            Log.e("ShowRepository", "Error searching for shows: ${e.message}")
+            Result.failure(e) // Return the error as a failure result
         }
     }
 }

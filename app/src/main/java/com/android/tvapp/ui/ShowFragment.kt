@@ -1,4 +1,4 @@
-package com.android.tvapp
+package com.android.tvapp.ui
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -8,6 +8,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import coil.load
+import com.android.tvapp.R
 import com.android.tvapp.data.Show
 
 class ShowFragment : Fragment() {
@@ -15,20 +16,22 @@ class ShowFragment : Fragment() {
     companion object {
         private const val SHOW_KEY = "show_key"
 
-        fun newInstance(show: Show?): ShowFragment {
+        fun newInstance(shows: List<Show>?): ShowFragment {
             val fragment = ShowFragment()
             val bundle = Bundle()
-            bundle.putSerializable(SHOW_KEY, show)
+            // Store the list of shows as Serializable
+            bundle.putSerializable(SHOW_KEY, ArrayList(shows)) // Use ArrayList for List<Show>
             fragment.arguments = bundle
             return fragment
         }
     }
 
-    private var show: Show? = null
+    private var shows: List<Show>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        show = arguments?.getSerializable(SHOW_KEY) as? Show
+        // Retrieve the list of shows from arguments
+        shows = arguments?.getSerializable(SHOW_KEY) as? List<Show>
     }
 
     override fun onCreateView(
@@ -45,12 +48,12 @@ class ShowFragment : Fragment() {
         val nameTextView = view.findViewById<TextView>(R.id.showNameTextView)
         val premiereTextView = view.findViewById<TextView>(R.id.premiereDaysTextView)
 
-        show?.let {
-            nameTextView.text = it.name ?: "No Title"
-            premiereTextView.text = "Premiered: ${it.premiered ?: "Unknown"}"
+        shows?.forEach { show ->
+            nameTextView.text = show.name ?: "No Title"
+            premiereTextView.text = "Premiered: ${show.premiered ?: "Unknown"}"
 
             // Load image safely with Coil
-            val imageUrl = it.image?.medium
+            val imageUrl = show.image?.medium
             if (!imageUrl.isNullOrEmpty()) {
                 showImageView.load(imageUrl) {
                     crossfade(true)

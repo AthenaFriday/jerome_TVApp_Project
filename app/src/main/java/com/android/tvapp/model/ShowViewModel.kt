@@ -12,42 +12,46 @@ import kotlinx.coroutines.launch
 
 class ShowViewModel(private val repository: ShowRepository) : ViewModel() {
 
+    // UI state to manage different view states (Idle, Loading, Success, Error)
     var uiState by mutableStateOf<UiState>(UiState.Idle)
         private set
 
-    fun searchShow(query: String) {
-        val trimmedQuery = query.trim()
+    // Function to search for shows based on the user's query
+    fun searchShows(query: String) {
+        val cleanedQuery = query.trim() // Remove any extra spaces from the query
+        val cached = repository.getCachedShows(cleanedQuery)
 
-        // Check cache first
-        val cached = repository.getCachedShow(trimmedQuery)
+        // If shows are already cached, return them immediately
         if (cached != null) {
-            Log.d("ShowViewModel", "Showing cached result for \"$trimmedQuery\"")
-            uiState = UiState.Success(cached)
+            Log.d("ShowViewModel", "Returning cached results for \"$cleanedQuery\"")
+            uiState = UiState.Success(cached) // Update the UI with the cached results
             return
         }
 
-        // Otherwise, fetch from API
+        // If not cached, make a network request to fetch shows
         viewModelScope.launch {
-            Log.d("ShowViewModel", "Fetching from network for \"$trimmedQuery\"")
-            uiState = UiState.Loading
-            val result = repository.searchShow(trimmedQuery)
+            uiState = UiState.Loading // Show loading spinner
+            val result = repository.searchShows(cleanedQuery)
             uiState = result.fold(
-                onSuccess = {
-                    Log.d("ShowViewModel", "Successfully fetched \"$trimmedQuery\"")
-                    UiState.Success(it)
+                onSuccess = { shows ->
+                    if (shows.isNotEmpty()) {
+                        UiState.Success(shows) // Update UI with the list of shows
+                    } else {
+                        UiState.Error("No TV shows found for \"$cleanedQuery\".")
+                    }
                 },
                 onFailure = {
-                    Log.e("ShowViewModel", "Error fetching \"$trimmedQuery\"")
-                    UiState.Error("Show not found.")
+                    UiState.Error("Failed to load TV shows. Please try again later.")
                 }
             )
         }
     }
 
+    // Sealed class to represent different UI states
     sealed class UiState {
-        object Idle : UiState()
-        object Loading : UiState()
-        data class Success(val show: Show) : UiState()
-        data class Error(val message: String) : UiState()
+        data object Idle : UiState() // Initial state when nothing has happened
+        data object Loading : UiState() // State when the request is being made
+        data class Success(val shows: List<Show>) : UiState() // State when shows are found
+        data class Error(val message: String) : UiState() // State when there's an error
     }
 }

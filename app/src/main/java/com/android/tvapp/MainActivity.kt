@@ -1,58 +1,35 @@
 package com.android.tvapp
 
+import android.os.Build
 import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
-import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
+import androidx.lifecycle.ViewModelProvider
+import com.android.tvapp.model.ShowSearchScreen
+import com.android.tvapp.model.ShowViewModel
 import com.android.tvapp.repository.ShowRepository
-import com.android.tvapp.ShowFragment
 import com.android.tvapp.ui.TvMazeApi
-import kotlinx.coroutines.launch
+import com.android.tvapp.ui.theme.TvAppTheme // If you have one
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
 
-    private lateinit var searchEditText: EditText
-    private lateinit var searchButton: Button
-    private lateinit var repository: ShowRepository
-
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
 
-        repository = ShowRepository(TvMazeApi.create())
-
-        searchEditText = findViewById(R.id.searchEditText)
-        searchButton = findViewById(R.id.searchButton)
-
-        // ✅ Properly handle back press (for API 34+ compatibility)
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (supportFragmentManager.backStackEntryCount > 0) {
-                    supportFragmentManager.popBackStack()
-                } else {
-                    finish()
-                }
+        // Instantiate repository and ViewModel
+        val repository = ShowRepository(TvMazeApi.create())
+        val viewModel = ViewModelProvider(this, object : ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return ShowViewModel(repository) as T
             }
-        })
+        })[ShowViewModel::class.java]
 
-        searchButton.setOnClickListener {
-            val query = searchEditText.text.toString().trim()
-            if (query.isNotEmpty()) {
-                searchShow(query)
+        setContent {
+            TvAppTheme { // You can remove this line if you don't use a custom theme
+                ShowSearchScreen(viewModel = viewModel)
             }
-        }
-    }
-
-    private fun searchShow(query: String) {
-        lifecycleScope.launch {
-            val result = repository.searchShow(query.lowercase())
-
-            supportFragmentManager.beginTransaction()
-                .replace(R.id.resultContainer, ShowFragment.newInstance(result.getOrNull()))
-                .addToBackStack(null) // 👈 optional: allow going back
-                .commit()
         }
     }
 }
