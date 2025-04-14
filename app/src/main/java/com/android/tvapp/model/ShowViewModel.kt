@@ -1,5 +1,6 @@
 package com.android.tvapp.model
 
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -15,12 +16,30 @@ class ShowViewModel(private val repository: ShowRepository) : ViewModel() {
         private set
 
     fun searchShow(query: String) {
+        val trimmedQuery = query.trim()
+
+        // Check cache first
+        val cached = repository.getCachedShow(trimmedQuery)
+        if (cached != null) {
+            Log.d("ShowViewModel", "Showing cached result for \"$trimmedQuery\"")
+            uiState = UiState.Success(cached)
+            return
+        }
+
+        // Otherwise, fetch from API
         viewModelScope.launch {
+            Log.d("ShowViewModel", "Fetching from network for \"$trimmedQuery\"")
             uiState = UiState.Loading
-            val result = repository.searchShow(query)
+            val result = repository.searchShow(trimmedQuery)
             uiState = result.fold(
-                onSuccess = { UiState.Success(it) },
-                onFailure = { UiState.Error("Show not found.") }
+                onSuccess = {
+                    Log.d("ShowViewModel", "Successfully fetched \"$trimmedQuery\"")
+                    UiState.Success(it)
+                },
+                onFailure = {
+                    Log.e("ShowViewModel", "Error fetching \"$trimmedQuery\"")
+                    UiState.Error("Show not found.")
+                }
             )
         }
     }
